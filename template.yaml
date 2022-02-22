@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM-App-Lambda-Api
+
+  Sample SAM Template for sam-app creating lambda with API call
+Resourses:
+ApiPollerStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      # Type: EXPRESS
+      Type: STANDARD
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FetchPayloadFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PreparePayloadFunction
+        - Statement:
+          - Sid: CloudWatchLogsPolicy
+            Effect: Allow
+            Action:
+            - "logs:CreateLogDelivery"
+            - "logs:GetLogDelivery"
+            - "logs:UpdateLogDelivery"
+            - "logs:DeleteLogDelivery"
+            - "logs:ListLogDeliveries"
+            - "logs:PutResourcePolicy"
+            - "logs:DescribeResourcePolicies"
+            - "logs:DescribeLogGroup"
+            - "logs:DescribeLogGroups"
+            Resource: "*"
+      Tracing:
+        Enabled: true
+      DefinitionUri: statemachine/fetch-data-state-machine.asl.yaml
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn: !GetAtt ApiPollerStateMachineLogGroup.Arn
+      DefinitionSubstitutions:
+        PreparePayloadFunction: !GetAtt PreparePayloadFunction.Arn
+        FetchPayloadFunction: !GetAtt FetchPayloadFunction.Arn
+
+  # PAYLOAD PROCESSOR STATE MACHINE LAMBDAS
+  PreparePayloadJobFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Handler: handlers/prepare-payload.handler
+
+  FetchPayloadFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Handler: handlers/fetch-payload.handler
+
+  ApiPollerStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "ApiFetchStateMachineLogGroup-${AWS::StackName}"
+      RetentionInDays: 7
