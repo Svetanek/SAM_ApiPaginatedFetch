@@ -1,23 +1,32 @@
-import { PayloadService } from '../services/payload-service';
-import { PayloadProxyService } from '../services/payload-proxy-service';
-import { AwsProxy } from '../common/aws-proxy';
-import { ParamResolver } from '../common/params-resolver';
-import { PollerTask } from '../common/models';
+const axios = require("axios")
+
+// import {getPayloadAsync} from './services/utils'
+
+const getPayloadAsync = async (request) =>  {
+    try {
+        const {data} = await axios.get(request.url, {
+          //   headers: {
+          //       'cache-control': 'no-cache',
+          //       'content-type': 'text/plain'
+          //   },
+            params: {
+                'offset': request.offset,
+                'limit': request.limit
+            }
+        });
+
+        return data;
+
+    } catch (err) {
+        console.log('Error', JSON.stringify(err));
+        // we are considering this error intermittent and will want to retry it
+        // throw retriableErrorFactory.retriablePollerError(err);
+    }
+}
 
 
 
-
-
-// const paramResolver = new ParamResolver();
-// const awsProxy = new AwsProxy(paramResolver);
-// const payloadService = new PayloadService(awsProxy, paramResolver);
-
-// const payloadProxyService = new PayloadProxyService();
-
-
-
-
-export const handler = async (event) => {
+exports.handler = async (event) => {
 
     const task = event.task;
 
@@ -27,9 +36,9 @@ export const handler = async (event) => {
     }
 
     const payload = await getPayloadAsync({
-       BaseUrl: task.request.BaseUrl,
-       Count: task.request.Count,
-       StartAt: task.request.StartAt
+       url: task.request.url,
+       offset: task.request.offset,
+       limit: task.request.limit
     });
 
     // note that if the payloade size is > 256 KB, you will need to store it in S3 first
@@ -41,30 +50,3 @@ export const handler = async (event) => {
       ...payload
     };
 }
-
-
-// getPayloadAsync = async (request: PagedRequest) : Promise<any> =>  {
-//         return await this.executeRequestAsync(request);
-//     }
-
-//     private executeRequestAsync = async (request: PagedRequest) : Promise<any> => {
-//         try {
-//             const result = await axios.get(request.BaseUrl, {
-//                 headers: {
-//                     'cache-control': 'no-cache',
-//                     'content-type': 'text/plain'
-//                 },
-//                 params: {
-//                     'startAt': request.StartAt,
-//                     'count': request.Count
-//                 }
-//             });
-
-//             return result.data;
-//         } catch (err) {
-//             console.log('Error', JSON.stringify(err));
-//             // we are considering this error intermittent and will want to retry it
-//             throw retriableErrorFactory.retriablePollerError(err);
-//         }
-//     }
-// }

@@ -1,11 +1,22 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
-Description: >
-  SAM-App-Lambda-Api
+AWSTemplateFormatVersion: 2010-09-09
 
-  Sample SAM Template for sam-app creating lambda with API call
-Resourses:
-ApiPollerStateMachine:
+Description: Sample SAM Template for sam-app creating lambda with API call
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform: AWS::Serverless-2016-10-31
+
+
+
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+# Description: >
+#   SAM-App-Lambda-Api
+
+#   Sample SAM Template for sam-app creating lambda with API call
+
+  ApiPollerStateMachineSimple:
     Type: AWS::Serverless::StateMachine
     Properties:
       # Type: EXPRESS
@@ -29,6 +40,9 @@ ApiPollerStateMachine:
             - "logs:DescribeLogGroup"
             - "logs:DescribeLogGroups"
             Resource: "*"
+
+
+
       Tracing:
         Enabled: true
       DefinitionUri: statemachine/fetch-data-state-machine.asl.yaml
@@ -43,19 +57,26 @@ ApiPollerStateMachine:
         FetchPayloadFunction: !GetAtt FetchPayloadFunction.Arn
 
   # PAYLOAD PROCESSOR STATE MACHINE LAMBDAS
-  PreparePayloadJobFunction:
+  PreparePayloadFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: makefile
     Properties:
-      Handler: handlers/prepare-payload.handler
+      CodeUri: src/
+      Handler: prepare-payload.handler
+      Runtime: nodejs14.x
+      Tracing: Active
+      Architectures:
+        - x86_64
 
   FetchPayloadFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: makefile
     Properties:
-      Handler: handlers/fetch-payload.handler
+      CodeUri: src/
+      Handler: fetch-payload.handler
+      Runtime: nodejs14.x
+      Tracing: Active
+      Architectures:
+        - x86_64
+
 
   ApiPollerStateMachineLogGroup:
     Type: AWS::Logs::LogGroup

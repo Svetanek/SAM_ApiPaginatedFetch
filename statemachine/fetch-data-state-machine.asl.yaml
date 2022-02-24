@@ -11,8 +11,7 @@ States:
     Next: ProcessPollerTasks
     Comment: Check the level of parallelism, split requests into chunks and invoke lamndas
     Retry:
-    - ErrorEquals:
-      - RetriablePollerError
+    - ErrorEquals: [ "States.Timeout" ]
       IntervalSeconds: 1
       MaxAttempts: 2
       BackoffRate: 1
@@ -24,48 +23,16 @@ States:
     Parameters:
       task.$: "$$.Map.Item.Value"
       taskStateMap.$: "$.taskStateMap"
-      nextState.$: "$.taskStateMap.Started"
-    MaxConcurrency: 25
+      stateStatus.$: "$.taskStateMap.started"
+    MaxConcurrency: 2
     Iterator:
       StartAt: FetchPayload
       States:
         Done:
           Type: Pass
           Parameters:
-            state.$: "$.nextState"
+            state.$: "$.stateStatus"
           End: True
-        # ReportProgress:
-        #   Type: Task
-        #   Resource: "${DDBPutItem}"
-        #   ResultPath: "$.ddb"
-        #   Parameters:
-        #     Item:
-        #       JobId:
-        #         S.$: "$.task.jobId"
-        #       TaskId:
-        #         S.$: "$.task.taskId"
-        #       TimeToLive:
-        #         N.$: "$.task.ttl"
-        #       State:
-        #         S.$: "$.nextState"
-        #     TableName: "${PollerTasksTable}"
-        #   Next: ChooseNextAction
-        # ChooseNextAction:
-        #   Type: Choice
-        #   Choices:
-        #   - Variable: "$.nextState"
-        #     StringEqualsPath: "$.taskStateMap.Started"
-        #     Next: FetchPayload
-        #   - Variable: "$.nextState"
-        #     StringEqualsPath: "$.taskStateMap.PayloadSaved"
-        #     Next: SendToSQS
-        #   - Variable: "$.nextState"
-        #     StringEqualsPath: "$.taskStateMap.Enqueued"
-        #     Next: Done
-        #   - Variable: "$.nextState"
-        #     StringEqualsPath: "$.taskStateMap.Failed"
-        #     Next: Done
-        #   Default: Done
         FetchPayload:
           Type: Task
           Resource: arn:aws:states:::lambda:invoke
@@ -73,6 +40,11 @@ States:
           Parameters:
             FunctionName: "${FetchPayloadFunction}"
             Payload.$: "$"
+          ResultSelector: {
+            task.$: $.task,
+            status.$: $.stateStatus
+          }
+          ResultPath:
           Next: Done
           Retry:
           - ErrorEquals: [ "States.Timeout" ]
@@ -84,47 +56,17 @@ States:
             ResultPath: "$.error"
             ErrorEquals:
             - States.ALL
-        # SendToSQS:
-        #   Type: Task
-        #   Resource: "${SQSPutItem}"
-        #   ResultPath: "$.sqs"
-        #   Parameters:
-        #     QueueUrl: "${ProcessPayloadQueueUrl}"
-        #     MessageBody.$: "$"
-        #     MessageAttributes:
-        #       jobId:
-        #         DataType: "String"
-        #         StringValue.$: "$.task.jobId"
-        #       taskId:
-        #         DataType: "String"
-        #         StringValue.$: "$.task.taskId"
-        #   Next: OnSentToSQS
-        # grouping state reporting tasks together
-        # OnPayloadSaved:
-        #   Type: Pass
-        #   Next: ReportProgress
-        #   Parameters:
-        #     taskStateMap.$: "$.taskStateMap"
-        #     task.$: "$.task"
-        #     nextState.$: "$.taskStateMap.PayloadSaved"
-        #     payloadLocation.$: "$.payloadLocation"
-        # OnSentToSQS:
-        #   Type: Pass
-        #   Next: ReportProgress
-        #   Parameters:
-        #     taskStateMap.$: "$.taskStateMap"
-        #     task.$: "$.task"
-        #     nextState.$: "$.taskStateMap.Enqueued"
-        #     payloadLocation.$: "$.payloadLocation"
+
         OnFailure:
           Type: Pass
           Next: Done
           Parameters:
             taskStateMap.$: "$.taskStateMap"
             task.$: "$.task"
-            nextState.$: "$.taskStateMap.Failed"
-            # payloadLocation.$: "$.payloadLocation"
-        # grouping state reporting tasks together
+            stateStatus.$: "$.taskStateMap.failed"
+
+
+
   PollerJobComplete:
     Type: Pass
     Comment: Used for result aggregation

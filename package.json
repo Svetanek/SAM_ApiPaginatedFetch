@@ -6,6 +6,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Svetanek/SAM_ApiPaginatedFetch.git"
+  },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Svetanek/SAM_ApiPaginatedFetch/issues"
+  },
+  "homepage": "https://github.com/Svetanek/SAM_ApiPaginatedFetch#readme"
 }
